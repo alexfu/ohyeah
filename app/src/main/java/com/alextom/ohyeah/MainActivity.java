@@ -6,6 +6,7 @@ import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.animation.ValueAnimator;
 import android.app.Activity;
+import android.content.Intent;
 import android.graphics.Color;
 import android.media.MediaPlayer;
 import android.os.Bundle;
@@ -72,19 +73,35 @@ public class MainActivity extends Activity implements View.OnClickListener, Medi
     }
 
     root.setBackgroundResource(R.color.kool_aid_red);
-    mediaPlayer.start();
+    mediaPlayer.start();   
     
-    if (animatorSet == null) {
-      animatorSet = createMainAnimatorSet();
+    if (counter < 3) {
+      if (animatorSet == null) {
+        animatorSet = createMainAnimatorSet();
+      }
+      counter++;
+    } else {
+      animatorSet = createAltAnimatorSet();
+      animatorSet.addListener(new AnimatorListenerAdapter() {
+        @Override
+        public void onAnimationEnd(Animator animation) {
+          animatorSet.removeAllListeners();
+          breakOutKoolAidMan();
+        }
+      });
     }
     
     animatorSet.start();
   }
 
+  private void breakOutKoolAidMan() {
+    startService(new Intent(this, BreakoutService.class));
+  }
+
   private AnimatorSet createMainAnimatorSet() {
     button.setPivotX(button.getWidth() / 2);
     button.setPivotY(button.getHeight() / 2);
-    int animationTime = 500;
+    int animationTime = getResources().getInteger(R.integer.animation_speed);
     
     // Base spin animation
     final ValueAnimator spinAnimation = ObjectAnimator.ofFloat(button, "rotation", 0, 720);
@@ -105,6 +122,47 @@ public class MainActivity extends Activity implements View.OnClickListener, Medi
 
     final ValueAnimator scaleYAnimationDown = ObjectAnimator.ofFloat(button, "scaleY", 2, 1);
     final ValueAnimator scaleXAnimationDown = ObjectAnimator.ofFloat(button, "scaleX", 2, 1);
+    scaleYAnimationDown
+        .setDuration(animationTime / 2)
+        .setInterpolator(new DecelerateInterpolator());
+    scaleXAnimationDown
+        .setDuration(animationTime / 2)
+        .setInterpolator(new DecelerateInterpolator());
+
+    scaleAnimatorSet.playTogether(scaleXAnimationUp, scaleYAnimationUp);
+    scaleAnimatorSet.play(scaleXAnimationDown).after(scaleXAnimationUp);
+    scaleAnimatorSet.play(scaleYAnimationDown).after(scaleYAnimationUp);
+
+    // Create the animation set
+    AnimatorSet set = new AnimatorSet();
+    set.playTogether(spinAnimation, scaleAnimatorSet);
+    return set;
+  }
+
+  private AnimatorSet createAltAnimatorSet() {
+    button.setPivotX(button.getWidth() / 2);
+    button.setPivotY(button.getHeight() / 2);
+    int animationTime = 500;
+
+    // Base spin animation
+    final ValueAnimator spinAnimation = ObjectAnimator.ofFloat(button, "rotation", 0, 720);
+    spinAnimation
+        .setDuration(animationTime)
+        .setInterpolator(new AccelerateDecelerateInterpolator());
+
+    // Scale up and down animation
+    AnimatorSet scaleAnimatorSet = new AnimatorSet();
+    final ValueAnimator scaleYAnimationUp = ObjectAnimator.ofFloat(button, "scaleY", 1, 2);
+    final ValueAnimator scaleXAnimationUp = ObjectAnimator.ofFloat(button, "scaleX", 1, 2);
+    scaleYAnimationUp
+        .setDuration(animationTime / 2)
+        .setInterpolator(new AccelerateInterpolator());
+    scaleXAnimationUp
+        .setDuration(animationTime / 2)
+        .setInterpolator(new AccelerateInterpolator());
+
+    final ValueAnimator scaleYAnimationDown = ObjectAnimator.ofFloat(button, "scaleY", 2, 0);
+    final ValueAnimator scaleXAnimationDown = ObjectAnimator.ofFloat(button, "scaleX", 2, 0);
     scaleYAnimationDown
         .setDuration(animationTime / 2)
         .setInterpolator(new DecelerateInterpolator());
