@@ -10,6 +10,7 @@ import android.content.Intent;
 import android.graphics.PixelFormat;
 import android.media.MediaPlayer;
 import android.os.IBinder;
+import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
@@ -36,13 +37,14 @@ public class BreakoutService extends Service {
     super.onCreate();
     windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
     animationTime = getResources().getInteger(R.integer.animation_speed);
-    touchSlop = ViewConfiguration.get(this).getScaledTouchSlop();    
-    
-    koolAidMan = new ImageView(this);
-    koolAidMan.setImageResource(R.drawable.free_kool_aid_man);
-    breakoutGlass = new ImageView(this);
-    breakoutGlass.setImageResource(R.drawable.breakout_glass);
-    breakoutGlass.setVisibility(View.GONE);
+    touchSlop = ViewConfiguration.get(this).getScaledTouchSlop();
+
+    LayoutInflater inflater = LayoutInflater.from(this);
+    View koolAidManLayout = inflater.inflate(R.layout.kool_aid_man, null);    
+    View breakoutGlassLayout = inflater.inflate(R.layout.breakout_glass, null);
+    koolAidMan = (ImageView) koolAidManLayout.findViewById(R.id.free_kool_aid_man);
+    breakoutGlass = (ImageView) breakoutGlassLayout.findViewById(R.id.breakout_glass);
+    breakoutGlass.setAlpha(0f);
 
     final WindowManager.LayoutParams params = new WindowManager.LayoutParams(
         WindowManager.LayoutParams.WRAP_CONTENT,
@@ -50,47 +52,13 @@ public class BreakoutService extends Service {
         WindowManager.LayoutParams.TYPE_PHONE,
         WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
         PixelFormat.TRANSLUCENT);
-    
-    AnimatorSet introAnimator = createIntroAnimator(koolAidMan);
-    introAnimator.addListener(new AnimatorListenerAdapter() {
-      @Override
-      public void onAnimationStart(Animator animation) {
-        breakoutGlass.postDelayed(new Runnable() {
-          @Override
-          public void run() {
-            mediaPlayer = MediaPlayer.create(BreakoutService.this, R.raw.glass_smash);
-            mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
-              @Override
-              public void onCompletion(MediaPlayer mp) {
-                mediaPlayer.setOnCompletionListener(null);
-                mediaPlayer.release();
-                mediaPlayer = null;
-              }
-            });
-            mediaPlayer.start();
-            
-            breakoutGlass.setVisibility(View.VISIBLE);
-            breakoutGlass.animate()
-                .setDuration(2000)
-                .alpha(0)
-                .setListener(new AnimatorListenerAdapter() {
-                  @Override
-                  public void onAnimationEnd(Animator animation) {
-                    animation.removeAllListeners();
-                    windowManager.removeViewImmediate(breakoutGlass);
-                    breakoutGlass = null;
-                  }
-                });
-            
-            setupTouchListeners(koolAidMan);
-            breakoutGlass.removeCallbacks(this);
-          }
-        }, animationTime/2);
-      }
-    });
 
-    windowManager.addView(breakoutGlass, params);
-    windowManager.addView(koolAidMan, params);
+    final Animator introAnimator = createIntroAnimator();    
+    introAnimator.addListener(introAnimatorListener);
+
+    windowManager.addView(breakoutGlassLayout, params);
+    windowManager.addView(koolAidManLayout, params);
+    
     introAnimator.start();
   }
 
@@ -145,7 +113,7 @@ public class BreakoutService extends Service {
       @Override
       public void onClick(View v) {
         if (mainAnimator == null) {
-          mainAnimator = createMainAnimatorSet(v);
+          mainAnimator = createMainAnimatorSet();
         }
         
         if (mediaPlayer == null) {
@@ -167,13 +135,13 @@ public class BreakoutService extends Service {
     });
   }
   
-  private AnimatorSet createIntroAnimator(View view) {
-    ValueAnimator spinAnimation = ObjectAnimator.ofFloat(view, "rotation", 0, 720);
+  private Animator createIntroAnimator() {
+    ValueAnimator spinAnimation = ObjectAnimator.ofFloat(koolAidMan, "rotation", 0, 720);
     spinAnimation.setDuration(animationTime)
         .setInterpolator(new AccelerateDecelerateInterpolator());
 
-    ValueAnimator scaleXAnimationUp = ObjectAnimator.ofFloat(view, "scaleX", 0, 1);
-    ValueAnimator scaleYAnimationUp = ObjectAnimator.ofFloat(view, "scaleY", 0, 1);
+    ValueAnimator scaleXAnimationUp = ObjectAnimator.ofFloat(koolAidMan, "scaleX", 0, 1);
+    ValueAnimator scaleYAnimationUp = ObjectAnimator.ofFloat(koolAidMan, "scaleY", 0, 1);
 
     scaleXAnimationUp
         .setDuration(animationTime)
@@ -187,21 +155,21 @@ public class BreakoutService extends Service {
     return set;
   }
 
-  private AnimatorSet createMainAnimatorSet(View view) {
-    view.setPivotX(view.getWidth() / 2);
-    view.setPivotY(view.getHeight() / 2);
+  private AnimatorSet createMainAnimatorSet() {
+    koolAidMan.setPivotX(koolAidMan.getWidth() / 2);
+    koolAidMan.setPivotY(koolAidMan.getHeight() / 2);
     int animationTime = getResources().getInteger(R.integer.animation_speed);
 
     // Base spin animation
-    final ValueAnimator spinAnimation = ObjectAnimator.ofFloat(view, "rotation", 0, 720);
+    final ValueAnimator spinAnimation = ObjectAnimator.ofFloat(koolAidMan, "rotation", 0, 720);
     spinAnimation
         .setDuration(animationTime)
         .setInterpolator(new AccelerateDecelerateInterpolator());
 
     // Scale up and down animation
     AnimatorSet scaleAnimatorSet = new AnimatorSet();
-    final ValueAnimator scaleYAnimationUp = ObjectAnimator.ofFloat(view, "scaleY", 1, 0.5f);
-    final ValueAnimator scaleXAnimationUp = ObjectAnimator.ofFloat(view, "scaleX", 1, 0.5f);
+    final ValueAnimator scaleYAnimationUp = ObjectAnimator.ofFloat(koolAidMan, "scaleY", 1, 0.5f);
+    final ValueAnimator scaleXAnimationUp = ObjectAnimator.ofFloat(koolAidMan, "scaleX", 1, 0.5f);
     scaleYAnimationUp
         .setDuration(animationTime / 2)
         .setInterpolator(new AccelerateInterpolator());
@@ -209,8 +177,8 @@ public class BreakoutService extends Service {
         .setDuration(animationTime / 2)
         .setInterpolator(new AccelerateInterpolator());
 
-    final ValueAnimator scaleYAnimationDown = ObjectAnimator.ofFloat(view, "scaleY", 0.5f, 1);
-    final ValueAnimator scaleXAnimationDown = ObjectAnimator.ofFloat(view, "scaleX", 0.5f, 1);
+    final ValueAnimator scaleYAnimationDown = ObjectAnimator.ofFloat(koolAidMan, "scaleY", 0.5f, 1);
+    final ValueAnimator scaleXAnimationDown = ObjectAnimator.ofFloat(koolAidMan, "scaleX", 0.5f, 1);
     scaleYAnimationDown
         .setDuration(animationTime / 2)
         .setInterpolator(new DecelerateInterpolator());
@@ -241,4 +209,50 @@ public class BreakoutService extends Service {
       windowManager.removeView(breakoutGlass);
     }
   }
+  
+  private AnimatorListenerAdapter introAnimatorListener = new AnimatorListenerAdapter() {
+    @Override
+    public void onAnimationStart(Animator animation) {
+      // Delay showing breakout glass until intro animation reaches the half
+      // way point.
+      breakoutGlass.postDelayed(breakOutGlass, animationTime/2);
+    }
+  };
+  
+  private Runnable breakOutGlass = new Runnable() {
+    @Override
+    public void run() {
+      // Play glass smash SFX
+      mediaPlayer = MediaPlayer.create(BreakoutService.this, R.raw.glass_smash);
+      mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+        @Override
+        public void onCompletion(MediaPlayer mp) {
+          mediaPlayer.setOnCompletionListener(null);
+          mediaPlayer.release();
+          mediaPlayer = null;
+        }
+      });
+      mediaPlayer.start();
+      
+      // Show glass
+      breakoutGlass.setAlpha(1f);
+      
+      // Fade out glass
+      breakoutGlass.animate()
+          .setDuration(2000)
+          .alpha(0)
+          .setListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(Animator animation) {
+              windowManager.removeViewImmediate((View) breakoutGlass.getParent());
+              breakoutGlass = null;
+            }
+          });
+      
+      // Setup touch events
+      setupTouchListeners((View) koolAidMan.getParent());
+
+      breakoutGlass.removeCallbacks(this);
+    }
+  };
 }
